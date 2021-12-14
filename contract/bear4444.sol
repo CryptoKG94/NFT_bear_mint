@@ -1,21 +1,14 @@
 /**
- *Submitted for verification at Etherscan.io on 2021-11-29
+ *Submitted for verification at Etherscan.io(testnet) on 2021-12-13
+ *I added presale logic, whitelist logic when minting.
+ *This will be used in future for you.
 */
 
 // SPDX-License-Identifier: MIT
 
 pragma solidity ^0.8.9;
 
-/*
- * @dev Provides information about the current execution context, including the
- * sender of the transaction and its data. While these are generally available
- * via msg.sender and msg.data, they should not be accessed in such a direct
- * manner, since when dealing with GSN meta-transactions the account sending and
- * paying for execution may not be the actual sender (as far as an application
- * is concerned).
- *
- * This contract is only required for intermediate, library-like contracts.
- */
+// import "./modules.sol";
 
 abstract contract Context {
     function _msgSender() internal view virtual returns (address) {
@@ -27,7 +20,6 @@ abstract contract Context {
         return msg.data;
     }
 }
-
 
 /**
  * @dev Interface of the ERC165 standard, as defined in the
@@ -1901,25 +1893,31 @@ contract bear4444 is ERC721, Ownable, ReentrancyGuard {
     using SafeMath for uint256;
 
     uint256 public mintPrice;
+    uint256 public maxNftSupply;
+    uint256 public curTicketId;
+
+    // for presale, not use now.
     uint256 public presaleMintPrice;
     uint256 public maxPublicToMint;
     uint256 public maxPresaleToMint;
-    uint256 public maxNftSupply;
     uint256 public maxPresaleSupply;
-    uint256 public curTicketId;
+    //
 
+    // whitelist( for presale)
     mapping(address => uint256) public presaleNumOfUser;
     mapping(address => uint256) public publicNumOfUser;
     mapping(address => uint256) public totalClaimed;
+    mapping(address => bool) private presaleWhitelist;
+
+    // whitelist( you need)
+    mapping(address => bool) private accessWhitelist;
 
     bool public presaleAllowed;
     bool public publicSaleAllowed;    
     uint256 public presaleStartTimestamp;
     uint256 public publicSaleStartTimestamp;    
 
-    mapping(address => bool) private presaleWhitelist;
-
-    constructor() ERC721("Project4444", "4444")  {
+    constructor() ERC721("Project4444", "Bear4444")  {
         maxNftSupply = 4444;
         maxPresaleSupply = 1333;
         mintPrice = 0.25 ether;
@@ -2010,6 +2008,7 @@ contract bear4444 is ERC721, Ownable, ReentrancyGuard {
         _setBaseURI(baseURI);
     }
 
+    // code For presale 
     function updatePresaleState(bool newStatus, uint256 timestamp) external onlyOwner {
         presaleAllowed = newStatus;
         if (timestamp != 0) {
@@ -2036,10 +2035,6 @@ contract bear4444 is ERC721, Ownable, ReentrancyGuard {
         }
     }
 
-    function isInWhitelist(address user) external view returns (bool) {
-        return presaleWhitelist[user];
-    }
-
     function doPresale(uint256 numberOfTokens) isHuman nonReentrant external payable {
         uint256 numOfUser = presaleNumOfUser[_msgSender()];
 
@@ -2054,6 +2049,7 @@ contract bear4444 is ERC721, Ownable, ReentrancyGuard {
         curTicketId = curTicketId.add(numberOfTokens);
     }
 
+    // mint function
     function doPublic(uint256 numberOfTokens) isHuman nonReentrant external payable {
         uint256 numOfUser = publicNumOfUser[_msgSender()];
         require(isPublicSaleLive(), "Public sale has not started yet");
@@ -2065,6 +2061,37 @@ contract bear4444 is ERC721, Ownable, ReentrancyGuard {
         publicNumOfUser[_msgSender()] = numberOfTokens.add(publicNumOfUser[_msgSender()]);
         curTicketId = curTicketId.add(numberOfTokens);
     }
+    // end presale
+
+    // whitelist process
+    function isInWhitelist(address user) external view returns (bool) {
+        // return presaleWhitelist[user];
+        return accessWhitelist[user];
+    }
+
+    function addToWhitelist(address[] calldata addresses) external onlyOwner {
+        for (uint256 i = 0; i < addresses.length; i++) {
+            accessWhitelist[addresses[i]] = true;
+        }
+    }
+
+    function removeToWhitelist(address[] calldata addresses) external onlyOwner {
+        for (uint256 i = 0; i < addresses.length; i++) {
+            accessWhitelist[addresses[i]] = false;
+        }
+    }
+
+    // function doMint(uint256 numberOfTokens) isHuman nonReentrant external payable {
+    //     uint256 numOfUser = publicNumOfUser[_msgSender()];
+    //     require(isPublicSaleLive(), "Public sale has not started yet");
+    //     require(numberOfTokens.add(numOfUser) <= maxPublicToMint, "Exceeds max public sale allowed per user");
+    //     require(curTicketId.add(numberOfTokens) <= maxNftSupply, "Exceeds max supply");
+    //     require(numberOfTokens > 0, "Must mint at least one token");
+    //     require(mintPrice.mul(numberOfTokens) <= msg.value, "Ether value sent is not correct");
+
+    //     publicNumOfUser[_msgSender()] = numberOfTokens.add(publicNumOfUser[_msgSender()]);
+    //     curTicketId = curTicketId.add(numberOfTokens);
+    // }
 
     function getUserClaimableTicketCount(address user) public view returns (uint256) {
         return presaleNumOfUser[user].add(publicNumOfUser[user]).sub(totalClaimed[user]);
